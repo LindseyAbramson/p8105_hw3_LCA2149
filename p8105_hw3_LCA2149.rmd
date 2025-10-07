@@ -7,6 +7,8 @@ date: "2025-10-06"
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(dplyr)
+library(readxl)
+library(haven)
 
 knitr::opts_chunk$set(
   fig.width = 6,
@@ -66,6 +68,7 @@ instacart |>
     ) +
   theme(plot.title = element_text(hjust = 0.5))
 ```
+The most common aisles include fresh vegetables and fresh fruits. The least common is butter. 
 
 ```{r}
 instacart |>
@@ -75,7 +78,7 @@ instacart |>
   slice_max(n, n = 3) |>
    knitr::kable()
 ```
-
+The most popular products from the baking ingredient aisle are light brown sugar, pure baking soda, and cane sugar. The most popular products from the dog food care aisle iare snack sticks chicken and rice recipe dog treats, organiz chicken and brown rice recipe, and small dog biscuits. And from the packaged vegetables fruits aisle are organic baby spinach, organic raspberries, and organic blueberries.
 
 ```{r}
 instacart |>
@@ -97,5 +100,127 @@ instacart |>
   select(product_name, order_dow, clock_time) |>
    pivot_wider(names_from = order_dow, values_from = clock_time) |>
    knitr::kable()
+```
+Coffee ice cream is ordered later in the day on average than pink lady apples every day of the week besides Fridays. 
+
+## Question 2
+Import Zip Code data
+```{r}
+Zipcode_df=
+  read_csv("data/Zip Codes.csv", na = c("NA", ".", "")) |>
+  janitor::clean_names() 
+```
+
+Import Zip_zori
+```{r}
+Zipzori_df =
+  read_csv("data/Zip_zori_uc_sfrcondomfr_sm_month_NYC.csv", 
+           na = c("NA", ".", "")) |>
+  janitor::clean_names() |>
+  pivot_longer(
+    cols=starts_with("x20"),
+    names_to="date",
+    values_to="zillow_value"
+  ) |>
+  mutate(
+    date = as.Date(gsub("x", "", gsub("_", "-", date)))
+  ) |>
+  select(
+    zip_code=region_name,
+    date, zillow_value,
+    everything())
+  
+```
+
+Merge
+```{r}
+Zillow_df =
+  left_join(Zipzori_df, Zipcode_df, by="zip_code") 
+```
+
+```{r}
+Zillow_df |>
+ count(zip_code) |>
+  filter(n == 116) |>
+  nrow()
+
+Zillow_df |>
+ count(zip_code) |>
+  filter(n < 10) |>
+  nrow()
+```
+There are 147 zip codes that were observed 116 times and 0 zip codes that were observed less than 10 times. Of the 147 zip codes observed every month, these may include well established neighborhoods with stable housing markets that have reliable data tracking methods. The fact that there are 0 zip codes that are observed less than 10 times means that the data was filtered that way and/or represents only markets that have consistent reporting.
+
+```{r}
+Zillow_df |>
+ mutate(year = year(date)) |>
+  group_by(county, year) |>
+  summarize(avg_rent = mean(zillow_value, na.rm = TRUE), .groups = 'drop') |>
+  pivot_wider(names_from = year, values_from = avg_rent) |>
+  knitr::kable(digits = 0)
+```
+We can see that rent has increased across all boroughs long-term, with a dip in all in 2020 during the pandemic. Overall Manhattan continued to have the highest average rent across the years, and the Bronx with the lowest.
+
+```{r}
+Zillow_df |>
+  mutate(year = year(date)) |>
+  group_by(county, zip_code, year) |>
+  summarize(avg_rent = mean(zillow_value, na.rm = TRUE), .groups = 'drop') |>
+  ggplot(aes(x = year, y = avg_rent, group = zip_code, color=county)) +
+  geom_line(alpha=0.3) +
+  labs(
+    title = "NYC Rental Price Trends by ZIP Code and Borough",
+    x = "Year",
+    y = "Average Rental Price"
+  ) 
+```
+This plot represents each individual zip code across the five boroughs and shows the variation in average rental price. Although this is dense, we can see a clear decrease across all counties around the time of the pandemic. 
+
+```{r}
+Zillow_df |>
+  filter(year(date) == 2023) |>
+  group_by(county, zip_code, month = month(date)) |>
+  summarize(avg_rent = mean(zillow_value, na.rm = TRUE), .groups = 'drop') |>
+  group_by(county, zip_code) |>
+  summarize(annual_avg_rent = mean(avg_rent, na.rm = TRUE), .groups = 'drop') |>
+  ggplot(aes(x = county, y = annual_avg_rent, fill = county)) +
+  geom_boxplot() +
+  labs(
+    title = "Distribution of Average Rental Prices by Borough (2023)",
+    x = "Borough",
+    y = "Average Rental Price" )
+```
+Manhattan has the greatest average rental price, followed by Kings (Brooklyn), Queens, Richmond (Staton Island), and the Bronx.
+
+```{r}
+plot_trend <- Zillow_df |>
+  mutate(year = year(date)) |>
+  group_by(county, zip_code, year) |>
+  summarize(avg_rent = mean(zillow_value, na.rm = TRUE), .groups = 'drop') |>
+  ggplot(aes(x = year, y = avg_rent, group = zip_code, color=county)) +
+  geom_line(alpha=0.3) +
+  labs(
+    title = "NYC Rental Price Trends by ZIP Code and Borough",
+    x = "Year",
+    y = "Average Rental Price") 
+
+plot_2023 <- Zillow_df |>
+  filter(year(date) == 2023) |>
+  group_by(county, zip_code, month = month(date)) |>
+  summarize(avg_rent = mean(zillow_value, na.rm = TRUE), .groups = 'drop') |>
+  group_by(county, zip_code) |>
+  summarize(annual_avg_rent = mean(avg_rent, na.rm = TRUE), .groups = 'drop') |>
+  ggplot(aes(x = county, y = annual_avg_rent, fill = county)) +
+  geom_boxplot() +
+  labs(
+    title = "Distribution of Average Rental Prices by Borough (2023)",
+    x = "Borough",
+    y = "Average Rental Price" )
+
+library(patchwork)
+combined_plot <- plot_trend / plot_2023
+print(combined_plot)
+
+ggsave("results/nyc_rental_analysis.png", combined_plot, width = 12, height = 10)
 ```
 
