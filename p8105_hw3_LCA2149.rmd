@@ -1,0 +1,101 @@
+---
+title: "p8105_hw3_LCA2149"
+output: github_document
+date: "2025-10-06"
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(dplyr)
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6,
+  out.width = "90%"
+)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+```
+
+
+## Question 1
+```{r}
+library(p8105.datasets)
+data("instacart")
+```
+
+```{r, include=FALSE}
+view(instacart)
+nrow(instacart)
+ncol(instacart)
+nrow(instacart) * ncol(instacart)
+names(instacart)
+summary(instacart)
+n_distinct(instacart$order_id)
+```
+
+The `instacart` dataset has 15 variables including order ID, product ID, add to cart order, etc, 1,384,617 rows that represent 131,209 distinct orders, and 20,769,255 total observations.
+
+```{r, include=FALSE}
+n_distinct(instacart$aisle)
+count(instacart, aisle, sort = TRUE)
+```
+
+There are 134 different aisles and the most popular are `fresh vegetables`, `fresh fruits`, and `packaged vetetable fruits` respectively.
+
+```{r}
+instacart |>
+  count(aisle) |>
+  filter(n > 10000) |>
+  ggplot(aes(x = reorder(aisle, n), y = n)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 65, hjust = 1, size=8))+
+  labs(
+    x="Aisle Name", 
+    y="Number of Items Ordered",
+    title="The Number of Items Ordered Per Aisle",
+    caption = "n greater than 10,000 items"
+    ) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+instacart |>
+  filter(aisle == "baking ingredients" | aisle == "dog food care" | aisle == "packaged vegetables fruits") |>
+  count(aisle, product_name) |>
+  group_by(aisle) |>
+  slice_max(n, n = 3) |>
+   knitr::kable()
+```
+
+
+```{r}
+instacart |>
+  filter(product_name == "Pink Lady Apples" | product_name == "Coffee Ice Cream") |>
+  group_by(product_name, order_dow) |>
+  summarize(mean_hour = mean(order_hour_of_day), .groups = 'drop') |>
+  mutate(
+    order_dow = case_when(
+      order_dow == 0 ~ "Sunday",
+      order_dow == 1 ~ "Monday", 
+      order_dow == 2 ~ "Tuesday",
+      order_dow == 3 ~ "Wednesday",
+      order_dow == 4 ~ "Thursday",
+      order_dow == 5 ~ "Friday",
+      order_dow == 6 ~ "Saturday"
+    ),
+    clock_time = paste0(floor(mean_hour), ":", sprintf("%02d", round((mean_hour - floor(mean_hour)) * 60)))
+  ) |>
+  select(product_name, order_dow, clock_time) |>
+   pivot_wider(names_from = order_dow, values_from = clock_time) |>
+   knitr::kable()
+```
+
