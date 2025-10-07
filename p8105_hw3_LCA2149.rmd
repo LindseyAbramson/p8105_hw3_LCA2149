@@ -282,3 +282,42 @@ NHANES_df |>
 ```
 
 After taking a look at the distrubution of education level across male and females and the distribution of age by education and sex we can make some observations. There are a similar number of males and females with both "less than high school" and "more than high school" educational levels. However, there are more males with high school equivalent educations compared to females. Secondly, for those with less than high school education, females tend to be on average a bit older. For those with high school equivalent educational levels, females are on average older by about 5 years, and for those with more than high school males are just slightly older. 
+
+
+```{r}
+NHANES_df <- NHANES_df |>
+ mutate(total_activity = rowSums(across(starts_with("min")), na.rm = TRUE)) 
+
+NHANES_df |>
+  ggplot(aes(x=age, y=total_activity, color=sex)) +
+  geom_point(alpha=0.5) +
+  geom_smooth(method = "loess", se = TRUE) +  
+  facet_wrap(~ education) +
+  labs(
+    x="Age",
+    y="Total Activity (minutes)",
+    title= "Total Daily Physical Activity by Age, Sex, and Education Level"
+  )
+```
+
+This plot compares total daily physical activity by age, sex, and education level. Across all educational levels, physical activity decreases with older age, and females "tend" to be more physically active on a day to day basis. We do see a jump in daily physical activity in both male and females with high school equivalent educations around age 35-40. 
+
+```{r}
+NHANES_df |>
+  pivot_longer(
+    cols = starts_with("min"),
+    names_to = "minute", 
+    values_to = "activity"
+  ) |>
+  mutate(minute = as.numeric(str_remove(minute, "min"))) |>
+  ggplot(aes(x = minute, y = activity, color = sex)) +
+  geom_smooth(se = TRUE) +
+  facet_wrap(~ education, ncol = 1) +
+  labs(
+    x = "Minute of Day",
+    y = "Activity Level", 
+    title = "Daily Physical Activity by Minute by Education Level and Sex"
+  )
+```
+
+This plots looks at physical activity across the entire day broken down minute by minute by education level and sex. We see an increase across all sexes and educational levels in the early morning as folks are waking up and starting their day. Physical activity peaks throughout the morning and mid-day. Activity levels start to decrease around 4:00pm.
