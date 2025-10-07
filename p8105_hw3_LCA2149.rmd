@@ -224,3 +224,61 @@ print(combined_plot)
 ggsave("results/nyc_rental_analysis.png", combined_plot, width = 12, height = 10)
 ```
 
+## Question 3
+
+Load, tidy, and merge the two datasets.
+```{r}
+accel_df =
+  read_csv("data/nhanes_accel.csv") |>
+  janitor::clean_names() 
+
+covar_df = 
+  read_csv("data/nhanes_covar.csv", skip=4) |>
+    janitor::clean_names() |>
+  mutate(sex = factor(sex, 
+                levels = c(1, 2),
+                labels = c("Male", "Female")),
+    education = factor(education,
+                      levels = c(1, 2, 3),
+                      labels = c("Less than high school", 
+                                "High school equivalent", 
+                                "More than high school"),
+                      ordered = TRUE),
+  ) |>
+  filter(age >= 21) |>
+  drop_na(sex, age, education)
+  
+```
+
+Merge datasets
+```{r}
+NHANES_df =
+  left_join(covar_df, accel_df, by="seqn") 
+```
+
+Table #1
+```{r}
+NHANES_df |>
+  count(education, sex) |>
+pivot_wider(
+    names_from = sex,
+    values_from = n,
+    values_fill = 0
+  ) |>
+  knitr::kable()
+```
+
+Graphic #1
+```{r}
+NHANES_df |>
+  ggplot(aes(x=education, y=age, fill=sex ))+
+  geom_boxplot(alpha=0.5) +
+  labs(
+    title = "Age Distribution by Education Level and Sex",
+    x = "Education Level", 
+    y = "Age",
+    fill = "Sex"
+  ) 
+```
+
+After taking a look at the distrubution of education level across male and females and the distribution of age by education and sex we can make some observations. There are a similar number of males and females with both "less than high school" and "more than high school" educational levels. However, there are more males with high school equivalent educations compared to females. Secondly, for those with less than high school education, females tend to be on average a bit older. For those with high school equivalent educational levels, females are on average older by about 5 years, and for those with more than high school males are just slightly older. 
